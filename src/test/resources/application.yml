@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:classgo;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: test-secret-test-secret-test-secret-test-secret
+    access-token-expiration: PT1H
+    refresh-token-expiration: P7D
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+  google:
+    enabled: false
+  storage:
+    public-base-url: https://cdn.test.classgo.app
+    bucket: classgo-test-assets
+  notifications:
+    email-enabled: false
+  aws:
+    region: us-east-1
+    access-key-id: test
+    secret-access-key: test
+    ses:
+      from-email: no-reply@test.classgo.app
+    r2:
+      endpoint: https://example.com
