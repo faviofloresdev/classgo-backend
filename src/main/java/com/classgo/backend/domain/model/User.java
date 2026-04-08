@@ -17,6 +17,8 @@ public class User extends BaseEntity {
     private String name;
     @Column(name = "avatar_id")
     private String avatarId;
+    @Column(name = "parent_avatar_id")
+    private String parentAvatarId;
     @Column(name = "password_hash")
     private String passwordHash;
     @Enumerated(EnumType.STRING)
@@ -44,6 +46,10 @@ public class User extends BaseEntity {
         return this.passwordHash;
     }
 
+    public String getParentAvatarId() {
+        return this.parentAvatarId;
+    }
+
     public UserRole getRole() {
         return this.role;
     }
@@ -66,6 +72,10 @@ public class User extends BaseEntity {
 
     public void setAvatarId(final String avatarId) {
         this.avatarId = avatarId;
+    }
+
+    public void setParentAvatarId(final String parentAvatarId) {
+        this.parentAvatarId = parentAvatarId;
     }
 
     public void setPasswordHash(final String passwordHash) {

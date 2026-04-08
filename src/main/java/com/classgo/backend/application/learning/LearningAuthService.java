@@ -62,6 +62,7 @@ public class LearningAuthService {
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setActive(true);
         user.setAvatarId("animal-1");
+        user.setParentAvatarId("parent-1");
         user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         user = userRepository.save(user);
         return new AuthResponse(jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole()), support.authUserResponse(user));
@@ -88,8 +89,12 @@ public class LearningAuthService {
         if (request.name() != null && !request.name().isBlank()) {
             user.setName(request.name().trim());
         }
-        if (request.avatarId() != null && !request.avatarId().isBlank()) {
-            user.setAvatarId(request.avatarId().trim());
+        String requestedStudentAvatarId = request.studentAvatarId() != null ? request.studentAvatarId() : request.avatarId();
+        if (requestedStudentAvatarId != null && !requestedStudentAvatarId.isBlank()) {
+            user.setAvatarId(requestedStudentAvatarId.trim());
+        }
+        if (request.parentAvatarId() != null && !request.parentAvatarId().isBlank()) {
+            user.setParentAvatarId(request.parentAvatarId().trim());
         }
         return support.authUserResponse(userRepository.save(user));
     }

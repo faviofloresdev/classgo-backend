@@ -34,7 +34,9 @@ class BackendApplicationTests {
         mockMvc.perform(get("/api/auth/me").header("Authorization", bearer(token)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.email").value("teacher@classgo.test"))
-            .andExpect(jsonPath("$.role").value("TEACHER"));
+            .andExpect(jsonPath("$.role").value("TEACHER"))
+            .andExpect(jsonPath("$.studentAvatarId").isEmpty())
+            .andExpect(jsonPath("$.parentAvatarId").isEmpty());
 
         mockMvc.perform(patch("/api/users/me")
                 .header("Authorization", bearer(token))
@@ -44,7 +46,9 @@ class BackendApplicationTests {
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Profesor Garcia"))
-            .andExpect(jsonPath("$.avatarId").value("robot-1"));
+            .andExpect(jsonPath("$.avatarId").value("robot-1"))
+            .andExpect(jsonPath("$.studentAvatarId").isEmpty())
+            .andExpect(jsonPath("$.parentAvatarId").isEmpty());
     }
 
     @Test
@@ -63,6 +67,12 @@ class BackendApplicationTests {
     void seededStudentCanReadGameplayContext() throws Exception {
         String token = login("student@classgo.test", "password");
 
+        mockMvc.perform(get("/api/auth/me").header("Authorization", bearer(token)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.role").value("STUDENT"))
+            .andExpect(jsonPath("$.studentAvatarId").value("animal-1"))
+            .andExpect(jsonPath("$.parentAvatarId").value("parent-1"));
+
         mockMvc.perform(get("/api/gameplay/context")
                 .param("classroomId", "77777777-7777-7777-7777-777777777777")
                 .header("Authorization", bearer(token)))
@@ -70,6 +80,14 @@ class BackendApplicationTests {
             .andExpect(jsonPath("$.classroom.name").value("Matematicas 3A"))
             .andExpect(jsonPath("$.topic.name").value("Sumas Basicas"))
             .andExpect(jsonPath("$.attemptAllowed").value(true));
+    }
+
+    @Test
+    void avatarsEndpointIncludesParentAvatar() throws Exception {
+        mockMvc.perform(get("/api/avatars"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == 'parent-1')]").exists())
+            .andExpect(jsonPath("$[?(@.id == 'parent-1')].name").value("Padre"));
     }
 
     @Test

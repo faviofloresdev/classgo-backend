@@ -24,13 +24,21 @@ public final class LearningDtos {
     public record QuickStudentLoginRequest(@NotBlank String name) {
     }
 
-    public record AuthUserResponse(UUID id, String name, String email, UserRole role, String avatarId) {
+    public record AuthUserResponse(
+        UUID id,
+        String name,
+        String email,
+        UserRole role,
+        String avatarId,
+        String studentAvatarId,
+        String parentAvatarId
+    ) {
     }
 
     public record AuthResponse(String token, AuthUserResponse user) {
     }
 
-    public record UpdateProfileRequest(String name, String avatarId) {
+    public record UpdateProfileRequest(String name, String avatarId, String studentAvatarId, String parentAvatarId) {
     }
 
     public record AvatarResponse(String id, String name, String category, String url) {

@@ -179,7 +179,15 @@ public class LearningSupport {
     }
 
     public AuthUserResponse authUserResponse(User user) {
-        return new AuthUserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getAvatarId());
+        return new AuthUserResponse(
+            user.getId(),
+            user.getName(),
+            user.getEmail(),
+            user.getRole(),
+            user.getAvatarId(),
+            user.getRole() == UserRole.STUDENT ? user.getAvatarId() : null,
+            user.getRole() == UserRole.STUDENT ? user.getParentAvatarId() : null
+        );
     }
 
     public AvatarResponse avatarResponse(AvatarCatalog avatar) {
