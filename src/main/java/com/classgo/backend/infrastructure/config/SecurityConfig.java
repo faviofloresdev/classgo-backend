@@ -49,7 +49,13 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers(
+                    "/actuator/health",
+                    "/actuator/info",
+                    "/actuator/metrics",
+                    "/actuator/metrics/**",
+                    "/actuator/prometheus"
+                ).permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/swagger-ui*/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                 .requestMatchers("/auth/**", "/api/auth/**", "/api/avatars").permitAll()
                 .requestMatchers(HttpMethod.GET, "/subjects/**", "/topics/**").authenticated()

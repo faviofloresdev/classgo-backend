@@ -38,6 +38,9 @@ public final class LearningDtos {
     public record AuthResponse(String token, AuthUserResponse user) {
     }
 
+    public record ActionResponse(String message) {
+    }
+
     public record UpdateProfileRequest(String name, String avatarId, String studentAvatarId, String parentAvatarId) {
     }
 

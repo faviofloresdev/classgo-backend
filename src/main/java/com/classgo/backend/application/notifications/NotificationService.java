@@ -90,7 +90,7 @@ public class NotificationService {
     @Transactional
     public void markAsRead(UUID userId, UUID notificationId) {
         Notification notification = notificationRepository.findByIdAndUserId(notificationId, userId)
-            .orElseThrow(() -> new ResourceNotFoundException("NOTIFICATION_NOT_FOUND", "Notificacion no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("NOTIFICATION_NOT_FOUND", "Notification not found"));
         if (notification.getReadAt() == null) {
             notification.setReadAt(Instant.now());
             notificationRepository.save(notification);

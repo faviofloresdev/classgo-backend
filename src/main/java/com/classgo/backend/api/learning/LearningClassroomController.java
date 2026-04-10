@@ -1,6 +1,7 @@
 package com.classgo.backend.api.learning;
 
 import com.classgo.backend.api.learning.dto.LearningDtos.AssignPlanRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.BasicUserResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.ClassroomResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.ClassroomWithDetailsResponse;
@@ -49,8 +50,9 @@ public class LearningClassroomController {
     }
 
     @DeleteMapping("/{classroomId}")
-    public void deleteClassroom(@PathVariable UUID classroomId) {
+    public ActionResponse deleteClassroom(@PathVariable UUID classroomId) {
         service.deleteClassroom(classroomId);
+        return new ActionResponse("Classroom deleted successfully");
     }
 
     @GetMapping("/{classroomId}")
@@ -69,13 +71,15 @@ public class LearningClassroomController {
     }
 
     @PostMapping("/{classroomId}/enrollments")
-    public void enrollStudent(@PathVariable UUID classroomId, @RequestBody Map<String, UUID> body) {
+    public ActionResponse enrollStudent(@PathVariable UUID classroomId, @RequestBody Map<String, UUID> body) {
         service.enrollStudent(classroomId, body.get("studentId"));
+        return new ActionResponse("Student enrolled successfully");
     }
 
     @DeleteMapping("/{classroomId}/enrollments/{studentId}")
-    public void removeEnrollment(@PathVariable UUID classroomId, @PathVariable UUID studentId) {
+    public ActionResponse removeEnrollment(@PathVariable UUID classroomId, @PathVariable UUID studentId) {
         service.removeEnrollment(classroomId, studentId);
+        return new ActionResponse("Student removed from classroom successfully");
     }
 
     @GetMapping("/{classroomId}/students")

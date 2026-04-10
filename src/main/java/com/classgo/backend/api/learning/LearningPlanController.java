@@ -3,6 +3,7 @@ package com.classgo.backend.api.learning;
 import com.classgo.backend.api.learning.dto.LearningDtos.ActivateWeekRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.ActivateWeekResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AddPlanTopicRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.CreatePlanRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.PlanResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.ReorderPlanTopicsRequest;
@@ -42,8 +43,9 @@ public class LearningPlanController {
     }
 
     @DeleteMapping("/{planId}")
-    public void deletePlan(@PathVariable UUID planId) {
+    public ActionResponse deletePlan(@PathVariable UUID planId) {
         service.deletePlan(planId);
+        return new ActionResponse("Plan deleted successfully");
     }
 
     @GetMapping("/{planId}")

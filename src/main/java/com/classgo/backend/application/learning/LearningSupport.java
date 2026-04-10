@@ -33,8 +33,10 @@ import com.classgo.backend.shared.exception.BusinessRuleViolationException;
 import com.classgo.backend.shared.exception.ResourceNotFoundException;
 import com.classgo.backend.shared.exception.UnauthorizedOperationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -52,13 +54,13 @@ public class LearningSupport {
 
     public void requireTeacher() {
         if (SecurityUtils.currentUser().role() != UserRole.TEACHER) {
-            throw new UnauthorizedOperationException("FORBIDDEN", "Solo los profesores pueden realizar esta accion");
+            throw new UnauthorizedOperationException("FORBIDDEN", "Only teachers can perform this action");
         }
     }
 
     public void requireStudent() {
         if (SecurityUtils.currentUser().role() != UserRole.STUDENT) {
-            throw new UnauthorizedOperationException("FORBIDDEN", "Solo los alumnos pueden realizar esta accion");
+            throw new UnauthorizedOperationException("FORBIDDEN", "Only students can perform this action");
         }
     }
 
@@ -78,75 +80,126 @@ public class LearningSupport {
         }
     }
 
-    public void validateQuestions(JsonNode questions) {
+    public JsonNode normalizeAndValidateQuestions(JsonNode questions) {
         if (questions == null || !questions.isArray() || questions.isEmpty()) {
-            throw new BusinessRuleViolationException("TOPIC_QUESTIONS_REQUIRED", "El topico debe tener al menos una pregunta");
+            throw new BusinessRuleViolationException("TOPIC_QUESTIONS_REQUIRED", "The topic must have at least one question");
         }
-        for (JsonNode question : questions) {
-            String type = requiredText(question, "type", "Cada pregunta debe tener type");
-            requiredText(question, "prompt", "Cada pregunta debe tener prompt");
-            switch (type) {
-                case "single_choice", "listen_and_select" -> validateChoiceQuestion(question, true, type.equals("listen_and_select"));
-                case "multiple_choice" -> validateChoiceQuestion(question, false, false);
+        ArrayNode normalizedQuestions = objectMapper.createArrayNode();
+        for (JsonNode questionNode : questions) {
+            if (!(questionNode instanceof ObjectNode question)) {
+                throw new BusinessRuleViolationException("VALIDATION_ERROR", "Each question must be a JSON object");
+            }
+            requiredText(question, "id", "Each question must have an id");
+            String type = requiredText(question, "type", "Each question must have a type");
+            requiredText(question, "prompt", "Each question must have a prompt");
+            String normalizedType = normalizeQuestionType(type);
+            question.put("type", normalizedType);
+            switch (normalizedType) {
+                case "single_choice" -> validateChoiceQuestion(question, true, false, false);
+                case "multiple_choice" -> validateChoiceQuestion(question, false, false, false);
+                case "listen_and_select_text" -> validateChoiceQuestion(question, true, true, false);
+                case "listen_and_select_image" -> validateChoiceQuestion(question, true, true, true);
+                case "image_selection" -> validateChoiceQuestion(question, true, false, true);
+                case "image_multiple_selection" -> validateChoiceQuestion(question, false, false, true);
                 case "fill_in_blank" -> validateFillBlank(question);
                 case "match_items" -> validateMatchItems(question);
-                default -> throw new BusinessRuleViolationException("QUESTION_TYPE_INVALID", "Tipo de pregunta no soportado: " + type);
+                case "single_text_ordering" -> validateOrderingQuestion(question, false, false);
+                case "phrase_ordering" -> validateOrderingQuestion(question, false, false);
+                case "image_ordering" -> validateOrderingQuestion(question, true, true);
+                default -> throw new BusinessRuleViolationException("QUESTION_TYPE_INVALID", "Unsupported question type: " + type);
             }
+            normalizedQuestions.add(question);
         }
+        return normalizedQuestions;
     }
 
-    private void validateChoiceQuestion(JsonNode question, boolean exactlyOneCorrect, boolean audioRequired) {
+    private void validateChoiceQuestion(JsonNode question, boolean exactlyOneCorrect, boolean audioRequired, boolean imageRequired) {
         JsonNode options = question.get("options");
         if (options == null || !options.isArray() || options.size() < 2) {
-            throw new BusinessRuleViolationException("QUESTION_OPTIONS_INVALID", "La pregunta debe tener al menos 2 opciones");
+            throw new BusinessRuleViolationException("QUESTION_OPTIONS_INVALID", "The question must have at least 2 options");
         }
         int correctCount = 0;
         for (JsonNode option : options) {
-            requiredText(option, "text", "Cada opcion debe tener text");
+            requiredText(option, "id", "Each option must have an id");
+            if (imageRequired) {
+                requiredText(option, "imageUrl", "Each option must have an imageUrl");
+            } else {
+                requiredText(option, "text", "Each option must have text");
+            }
             if (option.path("isCorrect").asBoolean(false)) {
                 correctCount++;
             }
         }
         if (exactlyOneCorrect && correctCount != 1) {
-            throw new BusinessRuleViolationException("QUESTION_CORRECT_OPTIONS_INVALID", "La pregunta debe tener exactamente una opcion correcta");
+            throw new BusinessRuleViolationException("QUESTION_CORRECT_OPTIONS_INVALID", "The question must have exactly one correct option");
         }
         if (!exactlyOneCorrect && correctCount < 1) {
-            throw new BusinessRuleViolationException("QUESTION_CORRECT_OPTIONS_INVALID", "La pregunta debe tener al menos una opcion correcta");
+            throw new BusinessRuleViolationException("QUESTION_CORRECT_OPTIONS_INVALID", "The question must have at least one correct option");
         }
         if (audioRequired) {
-            requiredText(question, "audioText", "listen_and_select requiere audioText");
+            requiredText(question, "audioText", "listen_and_select requires audioText");
         }
     }
 
     private void validateFillBlank(JsonNode question) {
-        String word = requiredText(question, "word", "fill_in_blank requiere word");
+        String word = requiredText(question, "word", "fill_in_blank requires word");
         JsonNode hiddenIndexes = question.get("hiddenIndexes");
         if (hiddenIndexes == null || !hiddenIndexes.isArray() || hiddenIndexes.isEmpty()) {
-            throw new BusinessRuleViolationException("FILL_IN_BLANK_INDEXES_INVALID", "fill_in_blank requiere hiddenIndexes");
+            throw new BusinessRuleViolationException("FILL_IN_BLANK_INDEXES_INVALID", "fill_in_blank requires hiddenIndexes");
         }
         List<Integer> seen = new ArrayList<>();
         for (JsonNode indexNode : hiddenIndexes) {
             int index = indexNode.asInt(-1);
             if (index < 0 || index >= word.length() || seen.contains(index)) {
-                throw new BusinessRuleViolationException("FILL_IN_BLANK_INDEXES_INVALID", "hiddenIndexes contiene valores invalidos o repetidos");
+                throw new BusinessRuleViolationException("FILL_IN_BLANK_INDEXES_INVALID", "hiddenIndexes contains invalid or duplicate values");
             }
             seen.add(index);
         }
     }
 
     private void validateMatchItems(JsonNode question) {
-        requiredText(question, "instruction", "match_items requiere instruction");
+        requiredText(question, "instruction", "match_items requires instruction");
         JsonNode pairs = question.get("pairs");
         if (pairs == null || !pairs.isArray() || pairs.size() < 2) {
-            throw new BusinessRuleViolationException("MATCH_ITEMS_INVALID", "match_items requiere al menos 2 pares");
+            throw new BusinessRuleViolationException("MATCH_ITEMS_INVALID", "match_items requires at least 2 pairs");
         }
         for (JsonNode pair : pairs) {
-            requiredText(pair, "left", "Cada par debe tener left");
-            String right = requiredText(pair, "right", "Cada par debe tener right");
+            requiredText(pair, "left", "Each pair must have left");
+            String right = requiredText(pair, "right", "Each pair must have right");
             if (right.contains(" ")) {
-                throw new BusinessRuleViolationException("MATCH_ITEMS_RIGHT_INVALID", "right debe ser una sola palabra");
+                throw new BusinessRuleViolationException("MATCH_ITEMS_RIGHT_INVALID", "right must be a single word");
             }
         }
+    }
+
+    private void validateOrderingQuestion(JsonNode question, boolean imageRequired, boolean imageCaptionOptional) {
+        JsonNode items = question.get("items");
+        if (items == null || !items.isArray() || items.size() < 2) {
+            throw new BusinessRuleViolationException("QUESTION_ITEMS_INVALID", "The question must have at least 2 items");
+        }
+        for (JsonNode item : items) {
+            requiredText(item, "id", "Each item must have an id");
+            if (imageRequired) {
+                requiredText(item, "imageUrl", "Each item must have an imageUrl");
+                if (!imageCaptionOptional && item.path("text").asText("").isBlank()) {
+                    throw new BusinessRuleViolationException("QUESTION_ITEMS_INVALID", "Each item must have text");
+                }
+            } else {
+                requiredText(item, "text", "Each item must have text");
+            }
+        }
+    }
+
+    private String normalizeQuestionType(String type) {
+        return switch (type) {
+            case "listen_and_select" -> "listen_and_select_text";
+            case "text_ordering" -> "phrase_ordering";
+            case "single_choice", "multiple_choice", "fill_in_blank", "match_items",
+                "listen_and_select_text", "listen_and_select_image",
+                "image_selection", "image_multiple_selection",
+                "single_text_ordering", "phrase_ordering", "image_ordering" -> type;
+            default -> type;
+        };
     }
 
     private String requiredText(JsonNode node, String field, String message) {
@@ -339,6 +392,6 @@ public class LearningSupport {
 
     public User requireUser(UUID userId, com.classgo.backend.domain.repository.UserRepository userRepository) {
         return userRepository.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "Usuario no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
     }
 }

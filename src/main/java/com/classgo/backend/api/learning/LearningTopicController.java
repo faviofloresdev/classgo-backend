@@ -1,6 +1,7 @@
 package com.classgo.backend.api.learning;
 
 import com.classgo.backend.api.learning.dto.LearningDtos.CreateTopicRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.TopicResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.UpdateTopicRequest;
 import com.classgo.backend.application.learning.LearningPlatformService;
@@ -37,8 +38,9 @@ public class LearningTopicController {
     }
 
     @DeleteMapping("/{topicId}")
-    public void deleteTopic(@PathVariable UUID topicId) {
+    public ActionResponse deleteTopic(@PathVariable UUID topicId) {
         service.deleteTopic(topicId);
+        return new ActionResponse("Topic deleted successfully");
     }
 
     @GetMapping("/{topicId}")

@@ -1,5 +1,6 @@
 package com.classgo.backend.api.learning;
 
+import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AuthResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AuthUserResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.LoginRequest;
@@ -36,8 +37,9 @@ public class LearningAuthController {
     }
 
     @PostMapping("/auth/logout")
-    public void logout(@RequestHeader(name = "Authorization", required = false) String authorizationHeader) {
+    public ActionResponse logout(@RequestHeader(name = "Authorization", required = false) String authorizationHeader) {
         authService.logout(authorizationHeader);
+        return new ActionResponse("Logged out successfully");
     }
 
     @GetMapping("/auth/me")
