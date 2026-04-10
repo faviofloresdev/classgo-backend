@@ -117,7 +117,7 @@ public class LearningPlatformService {
         support.requireTeacher();
         String normalizedCode = normalizeCode(request.code());
         if (classroomRepository.existsByCodeIgnoreCase(normalizedCode)) {
-            throw new DuplicateResourceException("CLASSROOM_CODE_ALREADY_EXISTS", "El codigo del aula ya existe");
+            throw new DuplicateResourceException("CLASSROOM_CODE_ALREADY_EXISTS", "The classroom code already exists");
         }
         User teacher = currentUser();
         AppClassroom classroom = new AppClassroom();
@@ -142,7 +142,7 @@ public class LearningPlatformService {
         if (request.code() != null) {
             String normalizedCode = normalizeCode(request.code());
             if (!normalizedCode.equalsIgnoreCase(classroom.getCode()) && classroomRepository.existsByCodeIgnoreCase(normalizedCode)) {
-                throw new DuplicateResourceException("CLASSROOM_CODE_ALREADY_EXISTS", "El codigo del aula ya existe");
+                throw new DuplicateResourceException("CLASSROOM_CODE_ALREADY_EXISTS", "The classroom code already exists");
             }
             classroom.setCode(normalizedCode);
         }
@@ -170,7 +170,7 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public ClassroomWithDetailsResponse classroom(UUID classroomId) {
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         authorizeClassroomView(classroom);
         return classroomDetails(classroom);
     }
@@ -197,7 +197,7 @@ public class LearningPlatformService {
     public ClassroomWithDetailsResponse joinClassroom(JoinClassroomRequest request) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findByCodeIgnoreCase(normalizeCode(request.code()))
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         if (!enrollmentRepository.existsByClassroomIdAndStudentId(classroom.getId(), SecurityUtils.currentUserId())) {
             Enrollment enrollment = new Enrollment();
             enrollment.setClassroom(classroom);
@@ -221,7 +221,7 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public List<BasicUserResponse> classroomStudents(UUID classroomId) {
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         authorizeClassroomView(classroom);
         return enrolledUsers(classroom).stream().map(support::basicUserResponse).toList();
     }
@@ -232,7 +232,7 @@ public class LearningPlatformService {
         AppClassroom classroom = ownedClassroom(classroomId);
         User student = support.requireUser(studentId, userRepository);
         if (student.getRole() != UserRole.STUDENT) {
-            throw new BusinessRuleViolationException("STUDENT_ROLE_REQUIRED", "El usuario debe ser alumno");
+            throw new BusinessRuleViolationException("STUDENT_ROLE_REQUIRED", "The user must be a student");
         }
         if (enrollmentRepository.existsByClassroomIdAndStudentId(classroomId, studentId)) {
             return;
@@ -294,7 +294,7 @@ public class LearningPlatformService {
         support.requireTeacher();
         StudyPlan plan = ownedPlan(planId);
         if (classroomRepository.countByActivePlanId(planId) > 0) {
-            throw new BusinessRuleViolationException("PLAN_IN_USE", "No se puede eliminar el plan porque esta asignado a un aula");
+            throw new BusinessRuleViolationException("PLAN_IN_USE", "The plan cannot be deleted because it is assigned to a classroom");
         }
         planRepository.delete(plan);
     }
@@ -310,9 +310,9 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public PlanResponse plan(UUID planId) {
         StudyPlan plan = planRepository.findById(planId)
-            .orElseThrow(() -> new ResourceNotFoundException("PLAN_NOT_FOUND", "Plan no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("PLAN_NOT_FOUND", "Plan not found"));
         if (SecurityUtils.currentUser().role() == UserRole.TEACHER && !plan.getTeacher().getId().equals(SecurityUtils.currentUserId())) {
-            throw new UnauthorizedOperationException("FORBIDDEN", "No puedes ver planes de otro profesor");
+            throw new UnauthorizedOperationException("FORBIDDEN", "You cannot view another teacher's plans");
         }
         return support.planResponse(plan, planTopicRepository.findAllByPlanIdOrderByWeekNumberAsc(planId));
     }
@@ -320,7 +320,7 @@ public class LearningPlatformService {
     @Transactional
     public TopicResponse createTopic(CreateTopicRequest request) {
         support.requireTeacher();
-        support.validateQuestions(request.questions());
+        var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions());
         LearningTopic topic = new LearningTopic();
         topic.setTeacher(currentUser());
         topic.setName(request.name().trim());
@@ -328,7 +328,7 @@ public class LearningPlatformService {
         topic.setIcon(request.icon());
         topic.setColor(request.color());
         topic.setDifficulty(request.difficulty());
-        topic.setQuestionsJson(support.writeJson(request.questions()));
+        topic.setQuestionsJson(support.writeJson(normalizedQuestions));
         return support.topicResponse(topicRepository.save(topic));
     }
 
@@ -337,8 +337,8 @@ public class LearningPlatformService {
         support.requireTeacher();
         LearningTopic topic = ownedTopic(topicId);
         if (request.questions() != null) {
-            support.validateQuestions(request.questions());
-            topic.setQuestionsJson(support.writeJson(request.questions()));
+            var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions());
+            topic.setQuestionsJson(support.writeJson(normalizedQuestions));
         }
         if (request.name() != null) {
             topic.setName(request.name().trim());
@@ -363,7 +363,7 @@ public class LearningPlatformService {
         support.requireTeacher();
         LearningTopic topic = ownedTopic(topicId);
         if (planTopicRepository.countByTopicId(topicId) > 0) {
-            throw new BusinessRuleViolationException("TOPIC_IN_USE", "No se puede eliminar el topico porque esta asignado a un plan");
+            throw new BusinessRuleViolationException("TOPIC_IN_USE", "The topic cannot be deleted because it is assigned to a plan");
         }
         topicRepository.delete(topic);
     }
@@ -377,9 +377,9 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public TopicResponse topic(UUID topicId) {
         LearningTopic topic = topicRepository.findById(topicId)
-            .orElseThrow(() -> new ResourceNotFoundException("TOPIC_NOT_FOUND", "Topico no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("TOPIC_NOT_FOUND", "Topic not found"));
         if (SecurityUtils.currentUser().role() == UserRole.TEACHER && !topic.getTeacher().getId().equals(SecurityUtils.currentUserId())) {
-            throw new UnauthorizedOperationException("FORBIDDEN", "No puedes ver topicos de otro profesor");
+            throw new UnauthorizedOperationException("FORBIDDEN", "You cannot view another teacher's topics");
         }
         return support.topicResponse(topic);
     }
@@ -390,11 +390,11 @@ public class LearningPlatformService {
         StudyPlan plan = ownedPlan(planId);
         LearningTopic topic = ownedTopic(request.topicId());
         if (planTopicRepository.existsByPlanIdAndTopicId(planId, topic.getId())) {
-            throw new BusinessRuleViolationException("PLAN_TOPIC_ALREADY_EXISTS", "El topico ya existe dentro del plan");
+            throw new BusinessRuleViolationException("PLAN_TOPIC_ALREADY_EXISTS", "The topic already exists in the plan");
         }
         int weekNumber = request.weekNumber() != null ? request.weekNumber() : planTopicRepository.findAllByPlanIdOrderByWeekNumberAsc(planId).size() + 1;
         if (planTopicRepository.existsByPlanIdAndWeekNumber(planId, weekNumber)) {
-            throw new BusinessRuleViolationException("PLAN_WEEK_ALREADY_EXISTS", "La semana ya existe dentro del plan");
+            throw new BusinessRuleViolationException("PLAN_WEEK_ALREADY_EXISTS", "The week already exists in the plan");
         }
         PlanTopic planTopic = new PlanTopic();
         planTopic.setPlan(plan);
@@ -421,7 +421,7 @@ public class LearningPlatformService {
         ownedPlan(planId);
         List<PlanTopic> items = planTopicRepository.findAllByPlanIdOrderByWeekNumberAsc(planId);
         if (items.size() != request.orderedTopicIds().size()) {
-            throw new BusinessRuleViolationException("PLAN_REORDER_INVALID", "orderedTopicIds no coincide con los topicos del plan");
+            throw new BusinessRuleViolationException("PLAN_REORDER_INVALID", "orderedTopicIds does not match the plan topics");
         }
         Map<UUID, PlanTopic> byTopic = new HashMap<>();
         items.forEach(item -> byTopic.put(item.getTopic().getId(), item));
@@ -429,7 +429,7 @@ public class LearningPlatformService {
             UUID topicId = request.orderedTopicIds().get(i);
             PlanTopic item = byTopic.get(topicId);
             if (item == null) {
-                throw new BusinessRuleViolationException("PLAN_REORDER_INVALID", "orderedTopicIds contiene topicos invalidos");
+                throw new BusinessRuleViolationException("PLAN_REORDER_INVALID", "orderedTopicIds contains invalid topics");
             }
             item.setWeekNumber(i + 1);
         }
@@ -450,13 +450,13 @@ public class LearningPlatformService {
     public GameplayContextResponse gameplayContext(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         if (classroom.getActivePlan() == null) {
-            throw new ResourceNotFoundException("ACTIVE_PLAN_NOT_FOUND", "El aula no tiene plan activo");
+            throw new ResourceNotFoundException("ACTIVE_PLAN_NOT_FOUND", "The classroom has no active plan");
         }
         PlanTopic activeWeek = planTopicRepository.findByPlanIdAndActiveTrue(classroom.getActivePlan().getId())
-            .orElseThrow(() -> new ResourceNotFoundException("ACTIVE_TOPIC_NOT_FOUND", "No hay topico activo"));
+            .orElseThrow(() -> new ResourceNotFoundException("ACTIVE_TOPIC_NOT_FOUND", "There is no active topic"));
         StudentAttempt bestAttempt = bestAttempt(studentAttemptRepository.findAllByStudentIdAndClassroomIdAndTopicIdAndWeekNumberOrderByCompletedAtDesc(
             SecurityUtils.currentUserId(),
             classroomId,
@@ -476,7 +476,7 @@ public class LearningPlatformService {
     public SseEmitter subscribeToClassroomPresence(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         User student = currentUser();
         return classroomPresenceStreamService.subscribe(classroomId, student.getId(), student.getName(), student.getAvatarId());
@@ -486,7 +486,7 @@ public class LearningPlatformService {
     public void connectClassroomPresence(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         User student = currentUser();
         boolean becameOnline = classroomPresenceStreamService.connect(classroomId, student.getId(), student.getName(), student.getAvatarId());
@@ -501,7 +501,7 @@ public class LearningPlatformService {
     public void heartbeatClassroomPresence(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         classroomPresenceStreamService.heartbeat(classroomId, SecurityUtils.currentUserId());
     }
@@ -510,7 +510,7 @@ public class LearningPlatformService {
     public void disconnectClassroomPresence(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         classroomPresenceStreamService.disconnect(classroomId, SecurityUtils.currentUserId());
     }
@@ -519,7 +519,7 @@ public class LearningPlatformService {
     public List<InAppNotificationResponse> classroomNotifications(UUID classroomId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         return notificationService.inAppNotifications(SecurityUtils.currentUserId()).stream()
             .filter(notification -> notification.getReadAt() == null)
@@ -533,7 +533,7 @@ public class LearningPlatformService {
     public void markNotificationRead(UUID classroomId, UUID notificationId) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         notificationService.markAsRead(SecurityUtils.currentUserId(), notificationId);
     }
@@ -542,15 +542,15 @@ public class LearningPlatformService {
     public StudentResultResponse submitResult(UUID classroomId, UUID topicId, SubmitResultRequest request) {
         support.requireStudent();
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         ensureStudentEnrolled(classroom);
         if (classroom.getActivePlan() == null) {
-            throw new BusinessRuleViolationException("ACTIVE_PLAN_NOT_FOUND", "El aula no tiene plan activo");
+            throw new BusinessRuleViolationException("ACTIVE_PLAN_NOT_FOUND", "The classroom has no active plan");
         }
         PlanTopic activeTopic = planTopicRepository.findByPlanIdAndActiveTrue(classroom.getActivePlan().getId())
-            .orElseThrow(() -> new BusinessRuleViolationException("ACTIVE_TOPIC_NOT_FOUND", "El plan no tiene una semana activa"));
+            .orElseThrow(() -> new BusinessRuleViolationException("ACTIVE_TOPIC_NOT_FOUND", "The plan does not have an active week"));
         if (!activeTopic.getTopic().getId().equals(topicId) || activeTopic.getWeekNumber() != request.weekNumber()) {
-            throw new BusinessRuleViolationException("RESULT_TOPIC_MISMATCH", "El resultado no corresponde al topico o semana activa");
+            throw new BusinessRuleViolationException("RESULT_TOPIC_MISMATCH", "The result does not match the active topic or week");
         }
         StudentAttempt attempt = new StudentAttempt();
         attempt.setStudent(currentUser());
@@ -569,7 +569,7 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public List<StudentResultWithDetailsResponse> classroomResults(UUID classroomId, Integer weekNumber) {
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         authorizeClassroomView(classroom);
         List<StudentAttempt> attempts = weekNumber != null
             ? studentAttemptRepository.findAllByClassroomIdAndWeekNumberOrderByCompletedAtAsc(classroomId, weekNumber)
@@ -589,7 +589,7 @@ public class LearningPlatformService {
     @Transactional(readOnly = true)
     public List<LeaderboardEntryResponse> leaderboard(UUID classroomId, Integer weekNumber) {
         AppClassroom classroom = classroomRepository.findById(classroomId)
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
         authorizeClassroomView(classroom);
         List<StudentAttempt> attempts = weekNumber != null
             ? studentAttemptRepository.findAllByClassroomIdAndWeekNumberOrderByCompletedAtAsc(classroomId, weekNumber)
@@ -608,7 +608,7 @@ public class LearningPlatformService {
     public List<HistoryEntryResponse> studentHistory(UUID classroomId, UUID studentId) {
         AppClassroom classroom = ownedClassroom(classroomId);
         if (!enrollmentRepository.existsByClassroomIdAndStudentId(classroomId, studentId)) {
-            throw new ResourceNotFoundException("ENROLLMENT_NOT_FOUND", "El alumno no pertenece al aula");
+            throw new ResourceNotFoundException("ENROLLMENT_NOT_FOUND", "The student does not belong to the classroom");
         }
         List<StudentAttempt> attempts = studentAttemptRepository.findAllByClassroomIdAndStudentIdOrderByWeekNumberAscCompletedAtAsc(classroomId, studentId);
         return bestAttempts(attempts).stream().map(support::historyEntry).toList();
@@ -654,7 +654,7 @@ public class LearningPlatformService {
 
     private void validatePlanRequest(ActivationMode activationMode, LocalDate startDate) {
         if (activationMode == ActivationMode.AUTO && startDate == null) {
-            throw new BusinessRuleViolationException("PLAN_START_DATE_REQUIRED", "Los planes automaticos requieren startDate");
+            throw new BusinessRuleViolationException("PLAN_START_DATE_REQUIRED", "Automatic plans require startDate");
         }
     }
 
@@ -669,7 +669,7 @@ public class LearningPlatformService {
             }
         }
         if (active == null && !allowMissing) {
-            throw new ResourceNotFoundException("PLAN_WEEK_NOT_FOUND", "La semana indicada no existe en el plan");
+            throw new ResourceNotFoundException("PLAN_WEEK_NOT_FOUND", "The requested week does not exist in the plan");
         }
         planTopicRepository.saveAll(topics);
         if (active != null) {
@@ -689,28 +689,28 @@ public class LearningPlatformService {
 
     private User currentUser() {
         return userRepository.findById(SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "Usuario no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
     }
 
     private AppClassroom ownedClassroom(UUID classroomId) {
         return classroomRepository.findByIdAndTeacherId(classroomId, SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Aula no encontrada"));
+            .orElseThrow(() -> new ResourceNotFoundException("CLASSROOM_NOT_FOUND", "Classroom not found"));
     }
 
     private StudyPlan ownedPlan(UUID planId) {
         return planRepository.findByIdAndTeacherId(planId, SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("PLAN_NOT_FOUND", "Plan no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("PLAN_NOT_FOUND", "Plan not found"));
     }
 
     private LearningTopic ownedTopic(UUID topicId) {
         return topicRepository.findByIdAndTeacherId(topicId, SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("TOPIC_NOT_FOUND", "Topico no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("TOPIC_NOT_FOUND", "Topic not found"));
     }
 
     private String normalizeCode(String code) {
         String normalized = code == null ? "" : code.trim().toUpperCase();
         if (normalized.length() < 4 || normalized.length() > 10) {
-            throw new BusinessRuleViolationException("CLASSROOM_CODE_INVALID", "El codigo debe tener entre 4 y 10 caracteres");
+            throw new BusinessRuleViolationException("CLASSROOM_CODE_INVALID", "The code must be between 4 and 10 characters");
         }
         return normalized;
     }
@@ -728,14 +728,14 @@ public class LearningPlatformService {
 
     private void ensureStudentEnrolled(AppClassroom classroom) {
         if (!enrollmentRepository.existsByClassroomIdAndStudentId(classroom.getId(), SecurityUtils.currentUserId())) {
-            throw new UnauthorizedOperationException("FORBIDDEN", "No perteneces a esta aula");
+            throw new UnauthorizedOperationException("FORBIDDEN", "You do not belong to this classroom");
         }
     }
 
     private void authorizeClassroomView(AppClassroom classroom) {
         if (SecurityUtils.currentUser().role() == UserRole.TEACHER) {
             if (!classroom.getTeacher().getId().equals(SecurityUtils.currentUserId())) {
-                throw new UnauthorizedOperationException("FORBIDDEN", "No puedes ver esta aula");
+                throw new UnauthorizedOperationException("FORBIDDEN", "You cannot view this classroom");
             }
             return;
         }

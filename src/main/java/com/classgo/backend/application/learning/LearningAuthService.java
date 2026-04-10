@@ -70,7 +70,7 @@ public class LearningAuthService {
 
     public com.classgo.backend.api.learning.dto.LearningDtos.AuthUserResponse me() {
         User user = userRepository.findById(SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "Usuario no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
         return support.authUserResponse(user);
     }
 
@@ -85,7 +85,7 @@ public class LearningAuthService {
     @Transactional
     public com.classgo.backend.api.learning.dto.LearningDtos.AuthUserResponse updateProfile(UpdateProfileRequest request) {
         User user = userRepository.findById(SecurityUtils.currentUserId())
-            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "Usuario no encontrado"));
+            .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
         if (request.name() != null && !request.name().isBlank()) {
             user.setName(request.name().trim());
         }

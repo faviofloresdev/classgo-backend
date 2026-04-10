@@ -1,5 +1,6 @@
 package com.classgo.backend.api.learning;
 
+import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.GameplayContextResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.InAppNotificationResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.StudentResultWithDetailsResponse;
@@ -37,18 +38,21 @@ public class LearningGameplayController {
     }
 
     @PostMapping("/gameplay/presence/connect")
-    public void connectPresence(@RequestParam UUID classroomId) {
+    public ActionResponse connectPresence(@RequestParam UUID classroomId) {
         service.connectClassroomPresence(classroomId);
+        return new ActionResponse("Presence connected successfully");
     }
 
     @PostMapping("/gameplay/presence/heartbeat")
-    public void heartbeatPresence(@RequestParam UUID classroomId) {
+    public ActionResponse heartbeatPresence(@RequestParam UUID classroomId) {
         service.heartbeatClassroomPresence(classroomId);
+        return new ActionResponse("Presence heartbeat recorded successfully");
     }
 
     @PostMapping("/gameplay/presence/disconnect")
-    public void disconnectPresence(@RequestParam UUID classroomId) {
+    public ActionResponse disconnectPresence(@RequestParam UUID classroomId) {
         service.disconnectClassroomPresence(classroomId);
+        return new ActionResponse("Presence disconnected successfully");
     }
 
     @GetMapping("/gameplay/notifications")
@@ -57,8 +61,9 @@ public class LearningGameplayController {
     }
 
     @PatchMapping("/gameplay/notifications/{notificationId}/read")
-    public void markNotificationRead(@PathVariable UUID notificationId, @RequestParam UUID classroomId) {
+    public ActionResponse markNotificationRead(@PathVariable UUID notificationId, @RequestParam UUID classroomId) {
         service.markNotificationRead(classroomId, notificationId);
+        return new ActionResponse("Notification marked as read successfully");
     }
 
     @GetMapping("/students/me/results")
