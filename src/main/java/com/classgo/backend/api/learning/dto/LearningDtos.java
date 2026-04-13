@@ -74,6 +74,40 @@ public final class LearningDtos {
     public record TrackActivityTypeRequest(@NotNull AchievementActivityType activityType) {
     }
 
+    public record CreatePedagogicalTagRequest(@NotBlank String name) {
+    }
+
+    public record UpdatePedagogicalTagRequest(@NotBlank String name) {
+    }
+
+    public record PedagogicalTagResponse(UUID id, String name, String slug, Instant createdAt) {
+    }
+
+    public record PedagogicalTagMetricResponse(
+        String slug,
+        String name,
+        long questionCount,
+        long answeredCount,
+        long correctCount,
+        double accuracy,
+        int averageScore
+    ) {
+    }
+
+    public record StudentPedagogicalTagInsightsResponse(
+        UUID studentId,
+        String studentName,
+        List<PedagogicalTagMetricResponse> metrics
+    ) {
+    }
+
+    public record ClassroomPedagogicalTagInsightsResponse(
+        UUID classroomId,
+        String classroomName,
+        List<PedagogicalTagMetricResponse> metrics
+    ) {
+    }
+
     public record BasicUserResponse(UUID id, String name, String avatarId) {
     }
 
