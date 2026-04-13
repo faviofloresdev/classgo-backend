@@ -32,7 +32,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     public ResponseEntity<ApiErrorResponse> handleFrameworkNotFound(Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Recurso no encontrado", request.getRequestURI());
+        return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found", request.getRequestURI());
     }
 
     @ExceptionHandler({UnauthorizedOperationException.class, BadCredentialsException.class})
@@ -69,7 +69,7 @@ public class GlobalExceptionHandler {
             return build(HttpStatus.NOT_FOUND, notFound.getCode(), notFound.getMessage(), request.getRequestURI());
         }
         if (cause instanceof NoResourceFoundException || cause instanceof NoHandlerFoundException) {
-            return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Recurso no encontrado", request.getRequestURI());
+            return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found", request.getRequestURI());
         }
         if (cause instanceof UnauthorizedOperationException forbidden) {
             return build(HttpStatus.FORBIDDEN, forbidden.getCode(), forbidden.getMessage(), request.getRequestURI());

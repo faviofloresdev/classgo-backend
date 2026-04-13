@@ -4,6 +4,7 @@ import com.classgo.backend.application.notifications.NotificationService;
 import com.classgo.backend.api.learning.dto.LearningDtos.ActivateWeekRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.ActivateWeekResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AddPlanTopicRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.AchievementUpdateResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AssignPlanRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.AvatarResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.BasicUserResponse;
@@ -28,6 +29,10 @@ import com.classgo.backend.api.learning.dto.LearningDtos.TopicResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.UpdateClassroomRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.UpdatePlanRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.UpdateTopicRequest;
+import com.classgo.backend.application.achievements.AchievementEventService;
+import com.classgo.backend.domain.enums.AchievementActivityType;
+import com.classgo.backend.domain.enums.AchievementFeature;
+import com.classgo.backend.domain.enums.AchievementSection;
 import com.classgo.backend.domain.enums.ActivationMode;
 import com.classgo.backend.domain.enums.NotificationType;
 import com.classgo.backend.domain.enums.UserRole;
@@ -80,6 +85,7 @@ public class LearningPlatformService {
     private final LearningSupport support;
     private final NotificationService notificationService;
     private final ClassroomPresenceStreamService classroomPresenceStreamService;
+    private final AchievementEventService achievementEventService;
 
     public LearningPlatformService(
         UserRepository userRepository,
@@ -92,7 +98,8 @@ public class LearningPlatformService {
         StudentAttemptRepository studentAttemptRepository,
         LearningSupport support,
         NotificationService notificationService,
-        ClassroomPresenceStreamService classroomPresenceStreamService
+        ClassroomPresenceStreamService classroomPresenceStreamService,
+        AchievementEventService achievementEventService
     ) {
         this.userRepository = userRepository;
         this.avatarCatalogRepository = avatarCatalogRepository;
@@ -105,6 +112,7 @@ public class LearningPlatformService {
         this.support = support;
         this.notificationService = notificationService;
         this.classroomPresenceStreamService = classroomPresenceStreamService;
+        this.achievementEventService = achievementEventService;
     }
 
     @Transactional(readOnly = true)
@@ -205,6 +213,7 @@ public class LearningPlatformService {
             enrollment.setJoinedAt(Instant.now());
             enrollmentRepository.save(enrollment);
         }
+        achievementEventService.onFeatureUsed(currentUser(), AchievementFeature.JOIN_CLASSROOM);
         return classroomDetails(classroom);
     }
 
@@ -563,7 +572,27 @@ public class LearningPlatformService {
         attempt.setTotalQuestions(request.totalQuestions());
         attempt.setAnswersJson(support.writeJson(request.answers()));
         attempt.setCompletedAt(Instant.now());
-        return support.resultResponse(studentAttemptRepository.save(attempt));
+        StudentAttempt saved = studentAttemptRepository.save(attempt);
+        AchievementUpdateResponse achievements = achievementEventService.onChallengeCompleted(saved.getStudent(), saved);
+        return support.resultResponse(saved, achievements);
+    }
+
+    @Transactional
+    public AchievementUpdateResponse trackSectionVisit(AchievementSection section) {
+        support.requireStudent();
+        return achievementEventService.onSectionVisited(currentUser(), section);
+    }
+
+    @Transactional
+    public AchievementUpdateResponse trackFeatureUse(AchievementFeature feature) {
+        support.requireStudent();
+        return achievementEventService.onFeatureUsed(currentUser(), feature);
+    }
+
+    @Transactional
+    public AchievementUpdateResponse trackActivityTypeCompleted(AchievementActivityType activityType) {
+        support.requireStudent();
+        return achievementEventService.onActivityTypeCompleted(currentUser(), activityType);
     }
 
     @Transactional(readOnly = true)
