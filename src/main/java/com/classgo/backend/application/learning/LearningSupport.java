@@ -82,6 +82,10 @@ public class LearningSupport {
     }
 
     public JsonNode normalizeAndValidateQuestions(JsonNode questions) {
+        return normalizeAndValidateQuestions(questions, java.util.Set.of());
+    }
+
+    public JsonNode normalizeAndValidateQuestions(JsonNode questions, java.util.Set<String> allowedPedagogicalTags) {
         if (questions == null || !questions.isArray() || questions.isEmpty()) {
             throw new BusinessRuleViolationException("TOPIC_QUESTIONS_REQUIRED", "The topic must have at least one question");
         }
@@ -95,6 +99,7 @@ public class LearningSupport {
             requiredText(question, "prompt", "Each question must have a prompt");
             String normalizedType = normalizeQuestionType(type);
             question.put("type", normalizedType);
+            normalizePedagogicalTags(question, allowedPedagogicalTags);
             switch (normalizedType) {
                 case "single_choice" -> validateChoiceQuestion(question, true, false, false);
                 case "multiple_choice" -> validateChoiceQuestion(question, false, false, false);
@@ -112,6 +117,32 @@ public class LearningSupport {
             normalizedQuestions.add(question);
         }
         return normalizedQuestions;
+    }
+
+    private void normalizePedagogicalTags(ObjectNode question, java.util.Set<String> allowedPedagogicalTags) {
+        JsonNode rawTags = question.get("pedagogicalTags");
+        ArrayNode normalized = objectMapper.createArrayNode();
+        if (rawTags == null) {
+            question.set("pedagogicalTags", normalized);
+            return;
+        }
+        if (!rawTags.isArray()) {
+            throw new BusinessRuleViolationException("PEDAGOGICAL_TAGS_INVALID", "pedagogicalTags must be an array");
+        }
+        java.util.LinkedHashSet<String> unique = new java.util.LinkedHashSet<>();
+        for (JsonNode tagNode : rawTags) {
+            String value = tagNode.asText(null);
+            if (value == null || value.isBlank()) {
+                throw new BusinessRuleViolationException("PEDAGOGICAL_TAGS_INVALID", "pedagogicalTags contains invalid values");
+            }
+            String normalizedTag = value.trim().toLowerCase();
+            if (!allowedPedagogicalTags.contains(normalizedTag)) {
+                throw new BusinessRuleViolationException("PEDAGOGICAL_TAG_NOT_FOUND", "Unknown pedagogical tag: " + value);
+            }
+            unique.add(normalizedTag);
+        }
+        unique.forEach(normalized::add);
+        question.set("pedagogicalTags", normalized);
     }
 
     private void validateChoiceQuestion(JsonNode question, boolean exactlyOneCorrect, boolean audioRequired, boolean imageRequired) {

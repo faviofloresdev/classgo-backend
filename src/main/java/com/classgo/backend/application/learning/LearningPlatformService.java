@@ -86,6 +86,7 @@ public class LearningPlatformService {
     private final NotificationService notificationService;
     private final ClassroomPresenceStreamService classroomPresenceStreamService;
     private final AchievementEventService achievementEventService;
+    private final PedagogicalTagService pedagogicalTagService;
 
     public LearningPlatformService(
         UserRepository userRepository,
@@ -99,7 +100,8 @@ public class LearningPlatformService {
         LearningSupport support,
         NotificationService notificationService,
         ClassroomPresenceStreamService classroomPresenceStreamService,
-        AchievementEventService achievementEventService
+        AchievementEventService achievementEventService,
+        PedagogicalTagService pedagogicalTagService
     ) {
         this.userRepository = userRepository;
         this.avatarCatalogRepository = avatarCatalogRepository;
@@ -113,6 +115,7 @@ public class LearningPlatformService {
         this.notificationService = notificationService;
         this.classroomPresenceStreamService = classroomPresenceStreamService;
         this.achievementEventService = achievementEventService;
+        this.pedagogicalTagService = pedagogicalTagService;
     }
 
     @Transactional(readOnly = true)
@@ -329,7 +332,7 @@ public class LearningPlatformService {
     @Transactional
     public TopicResponse createTopic(CreateTopicRequest request) {
         support.requireTeacher();
-        var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions());
+        var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions(), pedagogicalTagService.allowedTagSlugs(SecurityUtils.currentUserId()));
         LearningTopic topic = new LearningTopic();
         topic.setTeacher(currentUser());
         topic.setName(request.name().trim());
@@ -346,7 +349,7 @@ public class LearningPlatformService {
         support.requireTeacher();
         LearningTopic topic = ownedTopic(topicId);
         if (request.questions() != null) {
-            var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions());
+            var normalizedQuestions = support.normalizeAndValidateQuestions(request.questions(), pedagogicalTagService.allowedTagSlugs(SecurityUtils.currentUserId()));
             topic.setQuestionsJson(support.writeJson(normalizedQuestions));
         }
         if (request.name() != null) {
@@ -434,6 +437,15 @@ public class LearningPlatformService {
         }
         Map<UUID, PlanTopic> byTopic = new HashMap<>();
         items.forEach(item -> byTopic.put(item.getTopic().getId(), item));
+        int temporaryOffset = items.size() + 1000;
+
+        // Move all rows away from the target range first so uq_plan_week is never violated mid-reorder.
+        for (PlanTopic item : items) {
+            item.setWeekNumber(item.getWeekNumber() + temporaryOffset);
+        }
+        planTopicRepository.saveAll(items);
+        planTopicRepository.flush();
+
         for (int i = 0; i < request.orderedTopicIds().size(); i++) {
             UUID topicId = request.orderedTopicIds().get(i);
             PlanTopic item = byTopic.get(topicId);

@@ -3,9 +3,11 @@ package com.classgo.backend;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.classgo.backend.domain.repository.LearningTopicRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,9 @@ class BackendApplicationTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private LearningTopicRepository learningTopicRepository;
 
     @Test
     void teacherLoginAndProfileFlowWorks() throws Exception {
@@ -193,6 +198,139 @@ class BackendApplicationTests {
             .andExpect(jsonPath("$.achievements.updatedProgress.completedChallenges").value(1))
             .andExpect(jsonPath("$.achievements.updatedProgress.highScoreChallenges").value(1))
             .andExpect(jsonPath("$.achievements.updatedProgress.perfectChallenges").value(1));
+    }
+
+    @Test
+    @DirtiesContext
+    void teacherCanCreateAndSearchPedagogicalTags() throws Exception {
+        String teacherToken = login("teacher@classgo.test", "password");
+
+        mockMvc.perform(post("/api/pedagogical-tags")
+                .header("Authorization", bearer(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Addition Facts"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Addition Facts"))
+            .andExpect(jsonPath("$.slug").value("addition_facts"));
+
+        mockMvc.perform(get("/api/pedagogical-tags")
+                .param("query", "Addition")
+                .header("Authorization", bearer(teacherToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].slug").value("addition_facts"));
+    }
+
+    @Test
+    @DirtiesContext
+    void teacherCannotDeletePedagogicalTagWhenUsedByTopicQuestions() throws Exception {
+        String teacherToken = login("teacher@classgo.test", "password");
+
+        MvcResult tagResult = mockMvc.perform(post("/api/pedagogical-tags")
+                .header("Authorization", bearer(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Addition"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        String tagId = objectMapper.readTree(tagResult.getResponse().getContentAsString()).get("id").asText();
+
+        mockMvc.perform(post("/api/topics")
+                .header("Authorization", bearer(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Topic with Tags",
+                      "description": "Learning topic with pedagogical tags",
+                      "icon": "book",
+                      "color": "#FFAA00",
+                      "difficulty": "EASY",
+                      "questions": [
+                        {
+                          "id": "q1",
+                          "type": "single_choice",
+                          "prompt": "What is 2 + 2?",
+                          "pedagogicalTags": ["addition"],
+                          "options": [
+                            { "id": "o1", "text": "4", "isCorrect": true },
+                            { "id": "o2", "text": "5", "isCorrect": false }
+                          ]
+                        }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.questions[0].pedagogicalTags[0]").value("addition"));
+
+        mockMvc.perform(delete("/api/pedagogical-tags/" + tagId)
+                .header("Authorization", bearer(teacherToken)))
+            .andExpect(status().isUnprocessableEntity())
+            .andExpect(jsonPath("$.error.code").value("PEDAGOGICAL_TAG_IN_USE"));
+    }
+
+    @Test
+    @DirtiesContext
+    void pedagogicalTagAnalyticsFallbackToPromptWhenLegacyAnswersMissQuestionId() throws Exception {
+        String teacherToken = login("teacher@classgo.test", "password");
+        String studentToken = login("student@classgo.test", "password");
+
+        mockMvc.perform(post("/api/pedagogical-tags")
+                .header("Authorization", bearer(teacherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Animals"
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        var topic = learningTopicRepository.findById(java.util.UUID.fromString("44444444-4444-4444-4444-444444444444")).orElseThrow();
+        JsonNode questions = objectMapper.readTree(topic.getQuestionsJson());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) questions.get(0)).set(
+            "pedagogicalTags",
+            objectMapper.readTree("[\"animals\"]")
+        );
+        topic.setQuestionsJson(objectMapper.writeValueAsString(questions));
+        learningTopicRepository.save(topic);
+
+        mockMvc.perform(post("/api/classrooms/77777777-7777-7777-7777-777777777777/topics/44444444-4444-4444-4444-444444444444/results")
+                .header("Authorization", bearer(studentToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "weekNumber": 1,
+                      "score": 95,
+                      "timeSpent": 180,
+                      "correctAnswers": 1,
+                      "totalQuestions": 1,
+                      "answers": [
+                        {
+                          "question": "Cuanto es 3 + 4?",
+                          "correct": true,
+                          "selected": "7"
+                        }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/classrooms/77777777-7777-7777-7777-777777777777/pedagogical-tags/overview")
+                .header("Authorization", bearer(teacherToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.classroomId").value("77777777-7777-7777-7777-777777777777"))
+            .andExpect(jsonPath("$.metrics[0].slug").value("animals"))
+            .andExpect(jsonPath("$.metrics[0].questionCount").value(1))
+            .andExpect(jsonPath("$.metrics[0].answeredCount").value(1))
+            .andExpect(jsonPath("$.metrics[0].correctCount").value(1))
+            .andExpect(jsonPath("$.metrics[0].accuracy").value(1.0))
+            .andExpect(jsonPath("$.metrics[0].averageScore").value(95));
     }
 
     private String login(String email, String password) throws Exception {
