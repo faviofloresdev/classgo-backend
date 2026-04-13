@@ -1,9 +1,11 @@
 package com.classgo.backend.application.learning;
 
 import com.classgo.backend.api.learning.dto.LearningDtos.AuthResponse;
+import com.classgo.backend.api.learning.dto.LearningDtos.AchievementUpdateResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.LoginRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.QuickStudentLoginRequest;
 import com.classgo.backend.api.learning.dto.LearningDtos.UpdateProfileRequest;
+import com.classgo.backend.application.achievements.AchievementEventService;
 import com.classgo.backend.application.auth.AccessTokenRevocationService;
 import com.classgo.backend.domain.enums.AuthProvider;
 import com.classgo.backend.domain.enums.UserRole;
@@ -29,6 +31,7 @@ public class LearningAuthService {
     private final AuthenticationManager authenticationManager;
     private final LearningSupport support;
     private final AccessTokenRevocationService accessTokenRevocationService;
+    private final AchievementEventService achievementEventService;
 
     public LearningAuthService(
         UserRepository userRepository,
@@ -36,7 +39,8 @@ public class LearningAuthService {
         JwtService jwtService,
         AuthenticationManager authenticationManager,
         LearningSupport support,
-        AccessTokenRevocationService accessTokenRevocationService
+        AccessTokenRevocationService accessTokenRevocationService,
+        AchievementEventService achievementEventService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -44,6 +48,7 @@ public class LearningAuthService {
         this.authenticationManager = authenticationManager;
         this.support = support;
         this.accessTokenRevocationService = accessTokenRevocationService;
+        this.achievementEventService = achievementEventService;
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -86,6 +91,9 @@ public class LearningAuthService {
     public com.classgo.backend.api.learning.dto.LearningDtos.AuthUserResponse updateProfile(UpdateProfileRequest request) {
         User user = userRepository.findById(SecurityUtils.currentUserId())
             .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND", "User not found"));
+        String previousName = user.getName();
+        String previousAvatarId = user.getAvatarId();
+        String previousParentAvatarId = user.getParentAvatarId();
         if (request.name() != null && !request.name().isBlank()) {
             user.setName(request.name().trim());
         }
@@ -96,6 +104,13 @@ public class LearningAuthService {
         if (request.parentAvatarId() != null && !request.parentAvatarId().isBlank()) {
             user.setParentAvatarId(request.parentAvatarId().trim());
         }
-        return support.authUserResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        AchievementUpdateResponse achievements = achievementEventService.onProfileUpdated(
+            saved,
+            previousName,
+            previousAvatarId,
+            previousParentAvatarId
+        );
+        return support.authUserResponse(saved, achievements);
     }
 }

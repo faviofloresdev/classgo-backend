@@ -1,10 +1,15 @@
 package com.classgo.backend.api.learning;
 
 import com.classgo.backend.api.learning.dto.LearningDtos.ActionResponse;
+import com.classgo.backend.api.learning.dto.LearningDtos.AchievementUpdateResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.GameplayContextResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.InAppNotificationResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.StudentResultWithDetailsResponse;
+import com.classgo.backend.api.learning.dto.LearningDtos.TrackActivityTypeRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.TrackFeatureUseRequest;
+import com.classgo.backend.api.learning.dto.LearningDtos.TrackSectionVisitRequest;
 import com.classgo.backend.application.learning.LearningPlatformService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.MediaType;
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
@@ -69,5 +75,20 @@ public class LearningGameplayController {
     @GetMapping("/students/me/results")
     public List<StudentResultWithDetailsResponse> studentResults(@RequestParam(required = false) UUID classroomId) {
         return service.studentResults(classroomId);
+    }
+
+    @PostMapping("/achievements/section-visits")
+    public AchievementUpdateResponse trackSectionVisit(@Valid @RequestBody TrackSectionVisitRequest request) {
+        return service.trackSectionVisit(request.section());
+    }
+
+    @PostMapping("/achievements/feature-uses")
+    public AchievementUpdateResponse trackFeatureUse(@Valid @RequestBody TrackFeatureUseRequest request) {
+        return service.trackFeatureUse(request.feature());
+    }
+
+    @PostMapping("/achievements/activity-types")
+    public AchievementUpdateResponse trackActivityType(@Valid @RequestBody TrackActivityTypeRequest request) {
+        return service.trackActivityTypeCompleted(request.activityType());
     }
 }

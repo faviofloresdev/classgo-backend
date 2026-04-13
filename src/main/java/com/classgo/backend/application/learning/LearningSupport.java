@@ -1,6 +1,7 @@
 package com.classgo.backend.application.learning;
 
 import com.classgo.backend.api.learning.dto.LearningDtos.AuthUserResponse;
+import com.classgo.backend.api.learning.dto.LearningDtos.AchievementUpdateResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.AvatarResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.BasicUserResponse;
 import com.classgo.backend.api.learning.dto.LearningDtos.ClassroomResponse;
@@ -232,6 +233,10 @@ public class LearningSupport {
     }
 
     public AuthUserResponse authUserResponse(User user) {
+        return authUserResponse(user, null);
+    }
+
+    public AuthUserResponse authUserResponse(User user, AchievementUpdateResponse achievements) {
         return new AuthUserResponse(
             user.getId(),
             user.getName(),
@@ -239,7 +244,8 @@ public class LearningSupport {
             user.getRole(),
             user.getAvatarId(),
             user.getRole() == UserRole.STUDENT ? user.getAvatarId() : null,
-            user.getRole() == UserRole.STUDENT ? user.getParentAvatarId() : null
+            user.getRole() == UserRole.STUDENT ? user.getParentAvatarId() : null,
+            achievements
         );
     }
 
@@ -332,6 +338,10 @@ public class LearningSupport {
     }
 
     public StudentResultResponse resultResponse(StudentAttempt attempt) {
+        return resultResponse(attempt, null);
+    }
+
+    public StudentResultResponse resultResponse(StudentAttempt attempt, AchievementUpdateResponse achievements) {
         return new StudentResultResponse(
             attempt.getId(),
             attempt.getStudent().getId(),
@@ -343,7 +353,8 @@ public class LearningSupport {
             attempt.getTimeSpent(),
             attempt.getCorrectAnswers(),
             attempt.getTotalQuestions(),
-            parseJson(attempt.getAnswersJson())
+            parseJson(attempt.getAnswersJson()),
+            achievements
         );
     }
 

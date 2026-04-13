@@ -1,6 +1,10 @@
 package com.classgo.backend.api.learning.dto;
 
 import com.classgo.backend.domain.enums.ActivationMode;
+import com.classgo.backend.domain.enums.AchievementActivityType;
+import com.classgo.backend.domain.enums.AchievementCategory;
+import com.classgo.backend.domain.enums.AchievementFeature;
+import com.classgo.backend.domain.enums.AchievementSection;
 import com.classgo.backend.domain.enums.NotificationType;
 import com.classgo.backend.domain.enums.TopicDifficulty;
 import com.classgo.backend.domain.enums.UserRole;
@@ -31,7 +35,8 @@ public final class LearningDtos {
         UserRole role,
         String avatarId,
         String studentAvatarId,
-        String parentAvatarId
+        String parentAvatarId,
+        AchievementUpdateResponse achievements
     ) {
     }
 
@@ -57,6 +62,15 @@ public final class LearningDtos {
     }
 
     public record JoinClassroomRequest(@NotBlank String code) {
+    }
+
+    public record TrackSectionVisitRequest(@NotNull AchievementSection section) {
+    }
+
+    public record TrackFeatureUseRequest(@NotNull AchievementFeature feature) {
+    }
+
+    public record TrackActivityTypeRequest(@NotNull AchievementActivityType activityType) {
     }
 
     public record BasicUserResponse(UUID id, String name, String avatarId) {
@@ -230,7 +244,34 @@ public final class LearningDtos {
         int timeSpent,
         int correctAnswers,
         int totalQuestions,
-        JsonNode answers
+        JsonNode answers,
+        AchievementUpdateResponse achievements
+    ) {
+    }
+
+    public record AchievementUnlockedResponse(
+        String code,
+        String name,
+        AchievementCategory category,
+        Instant unlockedAt
+    ) {
+    }
+
+    public record AchievementProgressResponse(
+        long completedChallenges,
+        long currentWeeklyStreak,
+        long highScoreChallenges,
+        long perfectChallenges,
+        long distinctSections,
+        long distinctFeatures,
+        long distinctActivityTypes,
+        long firstCompletionCount
+    ) {
+    }
+
+    public record AchievementUpdateResponse(
+        List<AchievementUnlockedResponse> newlyUnlockedAchievements,
+        AchievementProgressResponse updatedProgress
     ) {
     }
 
