@@ -36,6 +36,7 @@ public final class LearningDtos {
         String avatarId,
         String studentAvatarId,
         String parentAvatarId,
+        int accumulatedXp,
         AchievementUpdateResponse achievements
     ) {
     }

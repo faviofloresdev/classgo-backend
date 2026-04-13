@@ -233,10 +233,10 @@ public class LearningSupport {
     }
 
     public AuthUserResponse authUserResponse(User user) {
-        return authUserResponse(user, null);
+        return authUserResponse(user, 0, null);
     }
 
-    public AuthUserResponse authUserResponse(User user, AchievementUpdateResponse achievements) {
+    public AuthUserResponse authUserResponse(User user, int accumulatedXp, AchievementUpdateResponse achievements) {
         return new AuthUserResponse(
             user.getId(),
             user.getName(),
@@ -245,6 +245,7 @@ public class LearningSupport {
             user.getAvatarId(),
             user.getRole() == UserRole.STUDENT ? user.getAvatarId() : null,
             user.getRole() == UserRole.STUDENT ? user.getParentAvatarId() : null,
+            accumulatedXp,
             achievements
         );
     }
